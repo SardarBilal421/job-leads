@@ -8,3 +8,8 @@
 *.pyc
 .env
 dist
+
+# Runtime output files
+*.csv
+seen_jobs.json
+logs/
