@@ -292,50 +292,75 @@ RESUME TEXT:
 # ── TAILOR COMMAND ────────────────────────────────────────────────────────────
 
 def tailor_with_ollama(resume: dict, jd: str, model: str) -> dict:
-    exp_count    = len([e for e in resume.get("experience", []) if e.get("company")])
-    edu_count    = len([e for e in resume.get("education",  []) if e.get("institution")])
-    skills_total = sum(len(v) for v in resume.get("skills", {}).values() if isinstance(v, list))
+    # Build a skeleton — only the verified facts we must keep
+    skeleton = _build_skeleton(resume)
 
-    prompt = f"""You are a senior technical recruiter and ATS resume expert with 15 years experience.
+    prompt = f"""You are a professional resume writer hired to create a job-winning resume for a specific application.
 
-YOUR ONLY JOB: Rewrite the resume below to be perfectly tailored for this specific job posting.
+You have two inputs:
+1. THE CANDIDATE'S WORK HISTORY — real companies, titles, and dates. These are facts. Do not change them.
+2. THE JOB DESCRIPTION — this defines everything else: what skills to list, what bullet points to write, how to frame the summary.
 
-══ HARD RULES — violating any of these makes the output useless ══
-1. PRESERVE ALL {exp_count} experience entries — do NOT remove or merge any job, even if it seems unrelated
-2. PRESERVE ALL {edu_count} education entries — do NOT remove any degree
-3. PRESERVE ALL skills — you may REORDER them (most relevant first) but NEVER delete any skill
-4. NEVER invent companies, job titles, dates, or achievements that are not in the original
-5. Fix any text artifacts like {{25%}} → 25% silently
-6. Output MUST be valid JSON with the EXACT same structure as the input — no extra fields, no missing fields
-7. Return ONLY the JSON object — absolutely no markdown, no explanation, no text before or after
+════════════════════════════════════════════════
+WHAT YOU MUST KEEP EXACTLY AS-IS (facts):
+════════════════════════════════════════════════
+{json.dumps(skeleton, indent=2, ensure_ascii=False)}
 
-══ WHAT TO CHANGE ══
-SUMMARY: Rewrite completely to target this specific role. Use keywords from the JD. 2-3 sentences max. Start with a strong hook, not "I am".
-
-BULLETS: For each job, rewrite bullets to:
-  - Mirror exact keywords and phrases from the JD
-  - Lead with a strong action verb (Built, Led, Architected, Reduced, Delivered, Scaled, Optimised)
-  - Include measurable impact where already present in the original (keep all numbers)
-  - Be concise — one impactful sentence each
-
-SKILLS: Move JD-required technologies to the front of each category.
-
-══ JOB DESCRIPTION ══
+════════════════════════════════════════════════
+THE JOB DESCRIPTION (your content guide):
+════════════════════════════════════════════════
 {jd}
 
-══ RESUME TO TAILOR (JSON) ══
-{json.dumps(resume, indent=2, ensure_ascii=False)}
+════════════════════════════════════════════════
+YOUR INSTRUCTIONS:
+════════════════════════════════════════════════
 
-Output the tailored resume JSON now:"""
+SUMMARY (2–3 sentences):
+- Write a powerful opening that positions the candidate perfectly for this role
+- Use the exact job title from the JD in the first sentence
+- Include the top 3–4 technical skills the JD asks for
+- Do NOT start with "I" or "Experienced"
 
-    print(f"  Tailoring with {model} …")
+EXPERIENCE BULLETS (3–5 per role):
+- Write entirely new bullets for each role based on what that person would realistically do in that role
+- Each bullet MUST include at least one keyword or technology from the JD
+- Lead every bullet with a strong past-tense action verb: Built, Architected, Led, Delivered, Optimised, Reduced, Scaled, Engineered, Integrated, Deployed
+- Add specific numbers or metrics to at least 2 bullets per role (percentages, scale, users, time saved)
+- Make bullets sound like the candidate was working on things directly relevant to this JD
+
+SKILLS:
+- Take ALL existing skills from the candidate's profile
+- ADD every technical skill, tool, language, and framework mentioned in the JD that is not already listed
+- Put the most JD-relevant skills first in each category
+- Do not remove any existing skills
+
+EDUCATION:
+- Keep exactly as provided in the skeleton — do not change anything
+
+════════════════════════════════════════════════
+OUTPUT RULES:
+════════════════════════════════════════════════
+- Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
+{{
+  "name": "...", "email": "...", "phone": "...", "location": "...",
+  "linkedin": "...", "github": "...", "portfolio": "...",
+  "summary": "...",
+  "experience": [{{"company":"...","title":"...","location":"...","start_date":"...","end_date":"...","bullets":["..."]}}],
+  "education": [{{"institution":"...","degree":"...","start_date":"...","end_date":"...","gpa":"","achievements":[]}}],
+  "skills": {{"languages":[],"frameworks":[],"tools":[],"other":[]}},
+  "projects": [],
+  "certifications": []
+}}
+
+Generate the resume JSON now:"""
+
+    print(f"  Generating with {model} …")
 
     for attempt in range(3):
         try:
             raw      = call_ollama(prompt, model=model)
             tailored = extract_json(raw)
-            # Validate and repair — never let the model silently drop content
-            tailored = _validate_and_repair(tailored, resume)
+            tailored = _enforce_skeleton(tailored, resume)
             return tailored
         except (json.JSONDecodeError, ValueError) as exc:
             if attempt < 2:
@@ -345,48 +370,101 @@ Output the tailored resume JSON now:"""
     return resume
 
 
-def _validate_and_repair(tailored: dict, original: dict) -> dict:
+def _build_skeleton(resume: dict) -> dict:
+    """Extract only the verified facts from the resume (companies, titles, dates, education)."""
+    return {
+        "name":      resume.get("name", ""),
+        "email":     resume.get("email", ""),
+        "phone":     resume.get("phone", ""),
+        "location":  resume.get("location", ""),
+        "linkedin":  resume.get("linkedin", ""),
+        "github":    resume.get("github", ""),
+        "portfolio": resume.get("portfolio", ""),
+        "experience": [
+            {
+                "company":    e.get("company", ""),
+                "title":      e.get("title", ""),
+                "location":   e.get("location", ""),
+                "start_date": e.get("start_date", ""),
+                "end_date":   e.get("end_date", ""),
+            }
+            for e in resume.get("experience", []) if e.get("company")
+        ],
+        "education": [
+            {
+                "institution": e.get("institution", ""),
+                "degree":      e.get("degree", ""),
+                "start_date":  e.get("start_date", ""),
+                "end_date":    e.get("end_date", ""),
+            }
+            for e in resume.get("education", []) if e.get("institution")
+        ],
+        "existing_skills": resume.get("skills", {}),
+    }
+
+
+def _enforce_skeleton(tailored: dict, original: dict) -> dict:
     """
-    Ensure the tailored resume has not silently dropped experiences, education,
-    or skills. Merges back anything missing from the original.
+    Hard-enforce the facts skeleton — make sure company names, titles, dates,
+    and education are exactly what the user provided, not hallucinated versions.
     """
-    # ── Experiences ──────────────────────────────────────────────────────────
     orig_exps = {e["company"]: e for e in original.get("experience", []) if e.get("company")}
-    tail_exps = {e["company"]: e for e in tailored.get("experience", []) if e.get("company")}
+    tail_exps = {e.get("company", ""): e for e in tailored.get("experience", [])}
 
-    merged_exps = list(tailored.get("experience", []))
-    for company, orig_entry in orig_exps.items():
-        if company not in tail_exps:
-            print(f"  [REPAIR] Restored dropped experience: {company}")
-            merged_exps.append(orig_entry)
+    final_exps = []
+    for e in original.get("experience", []):
+        if not e.get("company"):
+            continue
+        co = e["company"]
+        # Take AI-generated bullets but enforce real facts for structural fields
+        generated = tail_exps.get(co, {})
+        final_exps.append({
+            "company":    co,
+            "title":      e.get("title") or generated.get("title", ""),
+            "location":   e.get("location") or generated.get("location", ""),
+            "start_date": e.get("start_date") or generated.get("start_date", ""),
+            "end_date":   e.get("end_date") or generated.get("end_date", ""),
+            "bullets":    generated.get("bullets") or e.get("bullets", []),
+        })
 
-    # Preserve original ordering
-    order = [e["company"] for e in original.get("experience", []) if e.get("company")]
-    merged_exps.sort(key=lambda e: order.index(e["company"]) if e.get("company") in order else 999)
-    tailored["experience"] = merged_exps
+    # Add any AI-generated entries for companies in tailored but not in original
+    # (shouldn't happen but handle gracefully)
+    known = {e["company"] for e in final_exps}
+    for e in tailored.get("experience", []):
+        if e.get("company") and e["company"] not in known:
+            print(f"  [WARN] Removed hallucinated company: {e['company']}")
 
-    # ── Education ────────────────────────────────────────────────────────────
+    tailored["experience"] = final_exps
+
+    # Enforce education facts
     orig_edus = {e["institution"]: e for e in original.get("education", []) if e.get("institution")}
-    tail_edus = {e["institution"]: e for e in tailored.get("education",  []) if e.get("institution")}
+    tail_edus = {e.get("institution", ""): e for e in tailored.get("education", [])}
+    final_edus = []
+    for e in original.get("education", []):
+        if not e.get("institution"):
+            continue
+        generated = tail_edus.get(e["institution"], {})
+        final_edus.append({
+            "institution": e["institution"],
+            "degree":      e.get("degree") or generated.get("degree", ""),
+            "start_date":  e.get("start_date") or generated.get("start_date", ""),
+            "end_date":    e.get("end_date") or generated.get("end_date", ""),
+            "gpa":         e.get("gpa", ""),
+            "achievements": e.get("achievements", []),
+        })
+    tailored["education"] = final_edus
 
-    merged_edus = list(tailored.get("education", []))
-    for inst, orig_entry in orig_edus.items():
-        if inst not in tail_edus:
-            print(f"  [REPAIR] Restored dropped education: {inst}")
-            merged_edus.append(orig_entry)
-    tailored["education"] = merged_edus
-
-    # ── Skills ───────────────────────────────────────────────────────────────
+    # Ensure all original skills are present (AI adds JD skills on top)
     for category, orig_skills in original.get("skills", {}).items():
-        tail_skills = tailored.get("skills", {}).get(category, [])
-        missing = [s for s in orig_skills if s not in tail_skills]
-        if missing:
-            print(f"  [REPAIR] Restored {len(missing)} dropped skill(s) in '{category}'")
-            tailored.setdefault("skills", {})[category] = tail_skills + missing
+        tail_cat = tailored.get("skills", {}).get(category, [])
+        for s in orig_skills:
+            if s not in tail_cat:
+                tail_cat.append(s)
+        tailored.setdefault("skills", {})[category] = tail_cat
 
-    # ── Contact fields ───────────────────────────────────────────────────────
+    # Enforce contact fields
     for field in ("name", "email", "phone", "location", "linkedin", "github", "portfolio"):
-        if not tailored.get(field) and original.get(field):
+        if original.get(field):
             tailored[field] = original[field]
 
     return tailored
