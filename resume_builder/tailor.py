@@ -295,64 +295,80 @@ def tailor_with_ollama(resume: dict, jd: str, model: str) -> dict:
     # Build a skeleton — only the verified facts we must keep
     skeleton = _build_skeleton(resume)
 
-    prompt = f"""You are a professional resume writer hired to create a job-winning resume for a specific application.
+    prompt = f"""You are a world-class professional resume writer with 20 years of experience placing candidates at top tech companies.
 
 You have two inputs:
-1. THE CANDIDATE'S WORK HISTORY — real companies, titles, and dates. These are facts. Do not change them.
-2. THE JOB DESCRIPTION — this defines everything else: what skills to list, what bullet points to write, how to frame the summary.
+1. THE CANDIDATE'S WORK HISTORY — real companies, titles, and dates. These are facts you must not change.
+2. THE JOB DESCRIPTION — this is your complete content brief. Everything you write must serve this JD.
 
 ════════════════════════════════════════════════
-WHAT YOU MUST KEEP EXACTLY AS-IS (facts):
+CANDIDATE WORK HISTORY (facts — do not alter):
 ════════════════════════════════════════════════
 {json.dumps(skeleton, indent=2, ensure_ascii=False)}
 
 ════════════════════════════════════════════════
-THE JOB DESCRIPTION (your content guide):
+JOB DESCRIPTION:
 ════════════════════════════════════════════════
 {jd}
 
 ════════════════════════════════════════════════
-YOUR INSTRUCTIONS:
+INSTRUCTIONS — follow every point exactly:
 ════════════════════════════════════════════════
 
-SUMMARY (2–3 sentences):
-- Write a powerful opening that positions the candidate perfectly for this role
-- Use the exact job title from the JD in the first sentence
-- Include the top 3–4 technical skills the JD asks for
-- Do NOT start with "I" or "Experienced"
+■ SUMMARY (3 sentences, ~60 words):
+  • Sentence 1: State the exact job title from the JD + years of experience + top 2 tech skills from the JD
+  • Sentence 2: Highlight a specific achievement or area of expertise that maps to the JD's core requirement
+  • Sentence 3: Mention the candidate's value-add (e.g. AI background, MSc, leadership) and how it fits this role
+  • Do NOT start with "I", "Experienced", or "Passionate"
 
-EXPERIENCE BULLETS (3–5 per role):
-- Write entirely new bullets for each role based on what that person would realistically do in that role
-- Each bullet MUST include at least one keyword or technology from the JD
-- Lead every bullet with a strong past-tense action verb: Built, Architected, Led, Delivered, Optimised, Reduced, Scaled, Engineered, Integrated, Deployed
-- Add specific numbers or metrics to at least 2 bullets per role (percentages, scale, users, time saved)
-- Make bullets sound like the candidate was working on things directly relevant to this JD
+■ EXPERIENCE BULLETS — write 5 detailed bullets per role:
+  • Every bullet must be a full, rich sentence (not a fragment)
+  • Every bullet must reference at least one specific technology or methodology from the JD
+  • Use a DIFFERENT strong action verb to start each bullet — choose from:
+    Architected, Built, Engineered, Delivered, Optimised, Scaled, Integrated, Led, Deployed,
+    Reduced, Increased, Automated, Refactored, Designed, Spearheaded, Implemented, Migrated
+  • At least 3 of the 5 bullets must contain a quantified metric (%, ms, users, requests/day, hours saved, $ value)
+  • Bullets should feel like a senior engineer wrote them — specific, technical, results-driven
+  • Make bullets clearly relevant to the responsibilities and requirements in the JD
 
-SKILLS:
-- Take ALL existing skills from the candidate's profile
-- ADD every technical skill, tool, language, and framework mentioned in the JD that is not already listed
-- Put the most JD-relevant skills first in each category
-- Do not remove any existing skills
+■ SKILLS — be comprehensive and thorough:
+  • Start with all existing candidate skills
+  • Extract and ADD every single technology, tool, framework, language, methodology, and concept mentioned anywhere in the JD
+  • Also add closely related industry-standard skills implied by the JD (e.g. if JD says "React" also add "React Hooks", "JSX"; if "Node.js" also add "npm", "Express"; if "AWS" also add relevant AWS services)
+  • Organise by category — most JD-relevant skills appear first in each list
+  • languages: programming languages only
+  • frameworks: frontend/backend frameworks and libraries
+  • tools: devops, databases, testing, cloud, build tools
+  • other: methodologies, soft skills, concepts (Agile, TDD, REST, GraphQL, Microservices, etc.)
 
-EDUCATION:
-- Keep exactly as provided in the skeleton — do not change anything
+■ EDUCATION: Keep exactly as provided — do not change any field
 
 ════════════════════════════════════════════════
-OUTPUT RULES:
+OUTPUT FORMAT — return ONLY this JSON, nothing else:
 ════════════════════════════════════════════════
-- Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
 {{
   "name": "...", "email": "...", "phone": "...", "location": "...",
   "linkedin": "...", "github": "...", "portfolio": "...",
   "summary": "...",
-  "experience": [{{"company":"...","title":"...","location":"...","start_date":"...","end_date":"...","bullets":["..."]}}],
+  "experience": [
+    {{
+      "company": "...", "title": "...", "location": "...",
+      "start_date": "...", "end_date": "...",
+      "bullets": ["bullet 1", "bullet 2", "bullet 3", "bullet 4", "bullet 5"]
+    }}
+  ],
   "education": [{{"institution":"...","degree":"...","start_date":"...","end_date":"...","gpa":"","achievements":[]}}],
-  "skills": {{"languages":[],"frameworks":[],"tools":[],"other":[]}},
+  "skills": {{
+    "languages": ["lang1", "lang2"],
+    "frameworks": ["fw1", "fw2"],
+    "tools": ["tool1", "tool2"],
+    "other": ["concept1", "concept2"]
+  }},
   "projects": [],
   "certifications": []
 }}
 
-Generate the resume JSON now:"""
+Generate the complete resume JSON now:"""
 
     print(f"  Generating with {model} …")
 
