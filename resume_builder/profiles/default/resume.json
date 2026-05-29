@@ -1,0 +1,84 @@
+{
+  "name": "Bilal Rehman",
+  "email": "sardar142bilal@gmail.com",
+  "phone": "+447438139239",
+  "location": "London, UK",
+  "linkedin": "linkedin.com/in/bilal142",
+  "github": "",
+  "portfolio": "",
+  "summary": "Full Stack Developer with 4+ years of experience building scalable web and mobile applications. Hands-on expertise in React, Next.js, Angular, Node.js, Python, and AI/ML integration. Delivered production systems across fintech, SaaS, and consumer apps, with a track record of measurable performance and engagement improvements.",
+  "experience": [
+    {
+      "company": "Independent Projects",
+      "title": "AI Engineer",
+      "location": "Remote",
+      "start_date": "Jun 2025",
+      "end_date": "Nov 2025",
+      "bullets": [
+        "Designed and developed an AI-driven multi-agent investment research platform, reducing manual research time by 90%",
+        "Built a voice cloning and speech synthesis web platform achieving 95% accuracy from 3–10 seconds of audio input",
+        "Architected end-to-end ML pipelines integrating LLMs with real-time data feeds and REST APIs"
+      ]
+    },
+    {
+      "company": "AutoLeap",
+      "title": "Full Stack Developer",
+      "location": "Remote",
+      "start_date": "Jan 2024",
+      "end_date": "May 2025",
+      "bullets": [
+        "Developed a cloud-based auto repair shop management SaaS platform, increasing operational efficiency by 70%",
+        "Delivered a redesigned UI/UX that increased user engagement by 25%",
+        "Built and maintained RESTful APIs using Node.js and Express, serving thousands of daily active users"
+      ]
+    },
+    {
+      "company": "Qwamo",
+      "title": "Full Stack Developer",
+      "location": "Remote",
+      "start_date": "Jul 2021",
+      "end_date": "Dec 2023",
+      "bullets": [
+        "Led frontend development of a family task management app using React Native, achieving strong App Store ratings",
+        "Integrated AR features, social sharing, and e-commerce functionality into a cross-platform mobile app",
+        "Implemented end-to-end data encryption and authentication flows using Firebase Auth and JWT"
+      ]
+    },
+    {
+      "company": "HomeLyne",
+      "title": "Frontend Developer",
+      "location": "Remote",
+      "start_date": "2021",
+      "end_date": "2021",
+      "bullets": [
+        "Built responsive property listing interfaces using React.js and integrated third-party mapping APIs"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "University of East London",
+      "degree": "MSc Artificial Intelligence",
+      "start_date": "2025",
+      "end_date": "Present",
+      "gpa": "",
+      "achievements": []
+    },
+    {
+      "institution": "National University of Modern Languages",
+      "degree": "BSc Computer Science",
+      "start_date": "2019",
+      "end_date": "2023",
+      "gpa": "",
+      "achievements": []
+    }
+  ],
+  "skills": {
+    "languages": ["JavaScript", "TypeScript", "Python"],
+    "frameworks": ["React.js", "Next.js", "Angular", "Node.js", "Express.js", "React Native", "Redux", "Firebase"],
+    "tools": ["Git", "Docker", "MongoDB", "MySQL", "Socket.io", "REST APIs", "AWS"],
+    "other": ["AI/ML Integration", "LLMs", "Agile", "CI/CD", "AR Development", "Blockchain"]
+  },
+  "projects": [],
+  "certifications": []
+}

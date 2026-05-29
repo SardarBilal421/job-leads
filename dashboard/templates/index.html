@@ -806,10 +806,11 @@ tbody td {
               <div class="form-group">
                 <label class="form-label">Model</label>
                 <select class="form-select" id="tailor-model">
-                  <option value="qwen2.5-coder:32b">qwen2.5-coder:32b (best quality)</option>
-                  <option value="qwen2.5-coder:7b">qwen2.5-coder:7b (faster)</option>
-                  <option value="dolphin-llama3:latest">dolphin-llama3 (general)</option>
-                  <option value="llama3.2:latest">llama3.2 (fastest)</option>
+                  <option value="auto">Auto (tries best model, falls back if low RAM)</option>
+                  <option value="qwen2.5-coder:32b">qwen2.5-coder:32b (best — needs ~14 GB RAM)</option>
+                  <option value="qwen2.5-coder:7b">qwen2.5-coder:7b (good — needs ~5 GB RAM)</option>
+                  <option value="dolphin-llama3:latest">dolphin-llama3 (needs ~5 GB RAM)</option>
+                  <option value="llama3.2:latest">llama3.2 (lightest — needs ~2 GB RAM)</option>
                 </select>
               </div>
 

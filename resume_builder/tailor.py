@@ -39,6 +39,14 @@ OUTPUT_DIR    = BUILDER_DIR / "output"
 DEFAULT_PROFILE  = "default"
 PRIMARY_MODEL    = "qwen2.5-coder:32b"
 FALLBACK_MODEL   = "qwen2.5-coder:7b"
+
+# Ordered fallback chain — tried left to right when a model fails due to resources
+MODEL_CHAIN = [
+    "qwen2.5-coder:32b",
+    "qwen2.5-coder:7b",
+    "dolphin-llama3:latest",
+    "llama3.2:latest",
+]
 DEFAULT_TEMPLATE = "modern"
 
 TEMPLATES = ["modern", "classic", "minimal", "ats_safe", "tech_bold"]
@@ -124,13 +132,28 @@ def call_ollama(prompt: str, model: str = PRIMARY_MODEL) -> str:
         return response["response"]
     except Exception as e:
         err = str(e).lower()
-        if ("not found" in err or "pull" in err or "does not exist" in err) and model != FALLBACK_MODEL:
-            print(f"[WARN] {model} unavailable, falling back to {FALLBACK_MODEL}...")
-            return call_ollama(prompt, model=FALLBACK_MODEL)
+        is_fallback_err = any(kw in err for kw in [
+            "not found", "pull", "does not exist",   # model missing
+            "memory", "out of memory", "insufficient", # RAM/VRAM
+            "500",                                     # generic server error
+        ])
+        next_model = _next_in_chain(model)
+        if is_fallback_err and next_model:
+            print(f"[WARN] {model} failed ({str(e).splitlines()[0]})")
+            print(f"[WARN] Falling back to {next_model}…")
+            return call_ollama(prompt, model=next_model)
         raise RuntimeError(
             f"Ollama error: {e}\n"
             "Make sure Ollama is running: open a terminal and run 'ollama serve'"
         ) from e
+
+def _next_in_chain(model: str) -> str | None:
+    """Return the next smaller model in MODEL_CHAIN, or None if already at the end."""
+    try:
+        idx = MODEL_CHAIN.index(model)
+        return MODEL_CHAIN[idx + 1] if idx + 1 < len(MODEL_CHAIN) else None
+    except ValueError:
+        return FALLBACK_MODEL
 
 def extract_json(text: str) -> dict:
     """Extract JSON object from LLM output (handles markdown code fences)."""
@@ -269,43 +292,104 @@ RESUME TEXT:
 # ── TAILOR COMMAND ────────────────────────────────────────────────────────────
 
 def tailor_with_ollama(resume: dict, jd: str, model: str) -> dict:
-    prompt = f"""You are an expert ATS-optimized resume writer and senior career coach.
+    exp_count    = len([e for e in resume.get("experience", []) if e.get("company")])
+    edu_count    = len([e for e in resume.get("education",  []) if e.get("institution")])
+    skills_total = sum(len(v) for v in resume.get("skills", {}).values() if isinstance(v, list))
 
-TASK: Produce a tailored version of the resume below that maximises the chance of passing ATS screening and impressing the hiring manager for this specific job.
+    prompt = f"""You are a senior technical recruiter and ATS resume expert with 15 years experience.
 
-STRICT RULES:
-1. NEVER fabricate or invent experience, companies, dates, skills, or achievements not present in the original
-2. REPHRASE bullet points to naturally incorporate the most important keywords and phrases from the JD
-3. REORDER skills lists so JD-required technologies appear first
-4. REWRITE the professional summary to directly target this role, company, and seniority level
-5. SHORTEN or de-emphasise bullets for experience that is clearly irrelevant to this role
-6. Keep IDENTICAL JSON structure — same fields, same nesting, no additions or removals
-7. Return ONLY the JSON object — no markdown fences, no explanation, no preamble
+YOUR ONLY JOB: Rewrite the resume below to be perfectly tailored for this specific job posting.
 
-JOB DESCRIPTION:
----
+══ HARD RULES — violating any of these makes the output useless ══
+1. PRESERVE ALL {exp_count} experience entries — do NOT remove or merge any job, even if it seems unrelated
+2. PRESERVE ALL {edu_count} education entries — do NOT remove any degree
+3. PRESERVE ALL skills — you may REORDER them (most relevant first) but NEVER delete any skill
+4. NEVER invent companies, job titles, dates, or achievements that are not in the original
+5. Fix any text artifacts like {{25%}} → 25% silently
+6. Output MUST be valid JSON with the EXACT same structure as the input — no extra fields, no missing fields
+7. Return ONLY the JSON object — absolutely no markdown, no explanation, no text before or after
+
+══ WHAT TO CHANGE ══
+SUMMARY: Rewrite completely to target this specific role. Use keywords from the JD. 2-3 sentences max. Start with a strong hook, not "I am".
+
+BULLETS: For each job, rewrite bullets to:
+  - Mirror exact keywords and phrases from the JD
+  - Lead with a strong action verb (Built, Led, Architected, Reduced, Delivered, Scaled, Optimised)
+  - Include measurable impact where already present in the original (keep all numbers)
+  - Be concise — one impactful sentence each
+
+SKILLS: Move JD-required technologies to the front of each category.
+
+══ JOB DESCRIPTION ══
 {jd}
----
 
-MASTER RESUME (JSON):
----
+══ RESUME TO TAILOR (JSON) ══
 {json.dumps(resume, indent=2, ensure_ascii=False)}
----
 
-Tailored resume JSON:"""
+Output the tailored resume JSON now:"""
 
-    print(f"  Tailoring with {model}  (30–90s for 32b model) …")
+    print(f"  Tailoring with {model} …")
 
     for attempt in range(3):
         try:
-            raw = call_ollama(prompt, model=model)
-            return extract_json(raw)
+            raw      = call_ollama(prompt, model=model)
+            tailored = extract_json(raw)
+            # Validate and repair — never let the model silently drop content
+            tailored = _validate_and_repair(tailored, resume)
+            return tailored
         except (json.JSONDecodeError, ValueError) as exc:
             if attempt < 2:
                 print(f"  [WARN] JSON parse error on attempt {attempt + 1}, retrying…")
             else:
                 raise RuntimeError(f"Model returned unparseable JSON after 3 attempts: {exc}") from exc
-    return resume  # unreachable but makes type checker happy
+    return resume
+
+
+def _validate_and_repair(tailored: dict, original: dict) -> dict:
+    """
+    Ensure the tailored resume has not silently dropped experiences, education,
+    or skills. Merges back anything missing from the original.
+    """
+    # ── Experiences ──────────────────────────────────────────────────────────
+    orig_exps = {e["company"]: e for e in original.get("experience", []) if e.get("company")}
+    tail_exps = {e["company"]: e for e in tailored.get("experience", []) if e.get("company")}
+
+    merged_exps = list(tailored.get("experience", []))
+    for company, orig_entry in orig_exps.items():
+        if company not in tail_exps:
+            print(f"  [REPAIR] Restored dropped experience: {company}")
+            merged_exps.append(orig_entry)
+
+    # Preserve original ordering
+    order = [e["company"] for e in original.get("experience", []) if e.get("company")]
+    merged_exps.sort(key=lambda e: order.index(e["company"]) if e.get("company") in order else 999)
+    tailored["experience"] = merged_exps
+
+    # ── Education ────────────────────────────────────────────────────────────
+    orig_edus = {e["institution"]: e for e in original.get("education", []) if e.get("institution")}
+    tail_edus = {e["institution"]: e for e in tailored.get("education",  []) if e.get("institution")}
+
+    merged_edus = list(tailored.get("education", []))
+    for inst, orig_entry in orig_edus.items():
+        if inst not in tail_edus:
+            print(f"  [REPAIR] Restored dropped education: {inst}")
+            merged_edus.append(orig_entry)
+    tailored["education"] = merged_edus
+
+    # ── Skills ───────────────────────────────────────────────────────────────
+    for category, orig_skills in original.get("skills", {}).items():
+        tail_skills = tailored.get("skills", {}).get(category, [])
+        missing = [s for s in orig_skills if s not in tail_skills]
+        if missing:
+            print(f"  [REPAIR] Restored {len(missing)} dropped skill(s) in '{category}'")
+            tailored.setdefault("skills", {})[category] = tail_skills + missing
+
+    # ── Contact fields ───────────────────────────────────────────────────────
+    for field in ("name", "email", "phone", "location", "linkedin", "github", "portfolio"):
+        if not tailored.get(field) and original.get(field):
+            tailored[field] = original[field]
+
+    return tailored
 
 def cmd_tailor(args: argparse.Namespace) -> None:
     profile  = args.profile
