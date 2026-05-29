@@ -291,9 +291,58 @@ RESUME TEXT:
 
 # ── TAILOR COMMAND ────────────────────────────────────────────────────────────
 
+def _generate_summary(skeleton: dict, jd: str, model: str) -> str:
+    """Generate a rich professional summary in a dedicated focused call."""
+    name        = skeleton.get("name", "The candidate")
+    titles      = [e["title"] for e in skeleton.get("experience", []) if e.get("title")]
+    companies   = [e["company"] for e in skeleton.get("experience", []) if e.get("company")]
+    edu         = [e["degree"] for e in skeleton.get("education", []) if e.get("degree")]
+    orig_skills = skeleton.get("existing_skills", {})
+    all_skills  = [s for lst in orig_skills.values() for s in lst]
+
+    prompt = f"""Write a professional resume summary paragraph for this candidate applying to the job below.
+
+CANDIDATE FACTS:
+- Name: {name}
+- Roles held: {', '.join(titles[:4])}
+- Companies: {', '.join(companies[:4])}
+- Education: {', '.join(edu)}
+- Core skills: {', '.join(all_skills[:15])}
+
+JOB DESCRIPTION:
+{jd}
+
+REQUIREMENTS — follow every rule:
+1. Write EXACTLY 5 to 6 sentences as one flowing paragraph (not a list, not bullet points)
+2. Total length must be between 100 and 140 words — count carefully
+3. Sentence 1: Job title from JD + years of experience + 3 core technologies from JD
+4. Sentence 2: Describe the scale and type of systems built (products, users, requests)
+5. Sentence 3: Highlight 4-5 specific technologies from the JD and how they were applied
+6. Sentence 4: Mention the MSc in AI and how it adds value to this role
+7. Sentence 5: Describe leadership, mentoring, or cross-functional collaboration
+8. Sentence 6: State clearly what unique value the candidate brings to this specific company/role
+9. Do NOT start with "I", "Experienced", or "Passionate"
+10. Use confident, third-person professional tone
+
+Output ONLY the paragraph text — no labels, no JSON, no markdown:"""
+
+    print("  Generating summary …")
+    try:
+        raw = call_ollama(prompt, model=model)
+        # Strip any accidental JSON or markdown wrapping
+        summary = raw.strip().strip('"').strip("'")
+        summary = re.sub(r"^summary[:\s]*", "", summary, flags=re.IGNORECASE).strip()
+        return summary
+    except Exception:
+        return ""  # fall through to main prompt if this fails
+
+
 def tailor_with_ollama(resume: dict, jd: str, model: str) -> dict:
     # Build a skeleton — only the verified facts we must keep
     skeleton = _build_skeleton(resume)
+
+    # Generate summary separately for richer, more focused output
+    summary = _generate_summary(skeleton, jd, model)
 
     prompt = f"""You are a world-class professional resume writer with 20 years of experience placing candidates at top tech companies.
 
@@ -315,11 +364,9 @@ JOB DESCRIPTION:
 INSTRUCTIONS — follow every point exactly:
 ════════════════════════════════════════════════
 
-■ SUMMARY (3 sentences, ~60 words):
-  • Sentence 1: State the exact job title from the JD + years of experience + top 2 tech skills from the JD
-  • Sentence 2: Highlight a specific achievement or area of expertise that maps to the JD's core requirement
-  • Sentence 3: Mention the candidate's value-add (e.g. AI background, MSc, leadership) and how it fits this role
-  • Do NOT start with "I", "Experienced", or "Passionate"
+■ SUMMARY:
+  Use EXACTLY this pre-written summary — copy it word for word into the "summary" field, do not shorten or rewrite it:
+  "{summary if summary else 'Write a 5-6 sentence professional summary targeting this role.'}"
 
 ■ EXPERIENCE BULLETS — write 5 detailed bullets per role:
   • Every bullet must be a full, rich sentence (not a fragment)
@@ -377,6 +424,10 @@ Generate the complete resume JSON now:"""
             raw      = call_ollama(prompt, model=model)
             tailored = extract_json(raw)
             tailored = _enforce_skeleton(tailored, resume)
+            # Always use the separately generated summary — never let the main
+            # call overwrite it with a shorter version
+            if summary:
+                tailored["summary"] = summary
             return tailored
         except (json.JSONDecodeError, ValueError) as exc:
             if attempt < 2:
