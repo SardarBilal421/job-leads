@@ -47,6 +47,9 @@ MODEL_CHAIN = [
     "dolphin-llama3:latest",
     "llama3.2:latest",
 ]
+
+# Models that have already failed this session — skip them immediately
+_failed_models: set[str] = set()
 DEFAULT_TEMPLATE = "modern"
 
 TEMPLATES = ["modern", "classic", "minimal", "ats_safe", "tech_bold"]
@@ -127,20 +130,29 @@ def save_resume(profile: str, data: dict) -> None:
 # ── OLLAMA ────────────────────────────────────────────────────────────────────
 
 def call_ollama(prompt: str, model: str = PRIMARY_MODEL) -> str:
+    global _failed_models
+
+    # Skip models already known to be unavailable this session
+    if model in _failed_models:
+        next_model = _next_in_chain(model)
+        if next_model:
+            return call_ollama(prompt, model=next_model)
+        raise RuntimeError("No available Ollama model. Make sure 'ollama serve' is running.")
+
     try:
         response = ollama.generate(model=model, prompt=prompt)
         return response["response"]
     except Exception as e:
         err = str(e).lower()
         is_fallback_err = any(kw in err for kw in [
-            "not found", "pull", "does not exist",   # model missing
-            "memory", "out of memory", "insufficient", # RAM/VRAM
-            "500",                                     # generic server error
+            "not found", "pull", "does not exist",
+            "memory", "out of memory", "insufficient",
+            "500",
         ])
         next_model = _next_in_chain(model)
         if is_fallback_err and next_model:
-            print(f"[WARN] {model} failed ({str(e).splitlines()[0]})")
-            print(f"[WARN] Falling back to {next_model}…")
+            _failed_models.add(model)  # remember — don't retry this model again
+            print(f"[WARN] {model} unavailable — using {next_model} for this session")
             return call_ollama(prompt, model=next_model)
         raise RuntimeError(
             f"Ollama error: {e}\n"
@@ -300,31 +312,26 @@ def _generate_summary(skeleton: dict, jd: str, model: str) -> str:
     orig_skills = skeleton.get("existing_skills", {})
     all_skills  = [s for lst in orig_skills.values() for s in lst]
 
-    prompt = f"""Write a professional resume summary paragraph for this candidate applying to the job below.
+    prompt = f"""Write a sharp 3-sentence professional resume summary for this candidate.
 
 CANDIDATE FACTS:
-- Name: {name}
-- Roles held: {', '.join(titles[:4])}
-- Companies: {', '.join(companies[:4])}
+- Roles: {', '.join(titles[:4])}
 - Education: {', '.join(edu)}
-- Core skills: {', '.join(all_skills[:15])}
+- Skills: {', '.join(all_skills[:12])}
 
 JOB DESCRIPTION:
 {jd}
 
-REQUIREMENTS — follow every rule:
-1. Write EXACTLY 5 to 6 sentences as one flowing paragraph (not a list, not bullet points)
-2. Total length must be between 100 and 140 words — count carefully
-3. Sentence 1: Job title from JD + years of experience + 3 core technologies from JD
-4. Sentence 2: Describe the scale and type of systems built (products, users, requests)
-5. Sentence 3: Highlight 4-5 specific technologies from the JD and how they were applied
-6. Sentence 4: Mention the MSc in AI and how it adds value to this role
-7. Sentence 5: Describe leadership, mentoring, or cross-functional collaboration
-8. Sentence 6: State clearly what unique value the candidate brings to this specific company/role
-9. Do NOT start with "I", "Experienced", or "Passionate"
-10. Use confident, third-person professional tone
+STRICT RULES:
+• Write exactly 3 sentences as a single flowing paragraph — not a list, not bullet points
+• Total word count must be between 55 and 75 words — aim for 65 words
+• Sentence 1 (~25 words): "[Job title from JD] with [X] years of experience in [3 technologies from JD], delivering [type of product] that [scale/impact]."
+• Sentence 2 (~25 words): Highlight a specific technical depth area and 2-3 more JD technologies applied in real projects.
+• Sentence 3 (~15 words): MSc in AI + leadership/mentoring + unique value for this specific role.
+• Do NOT start with "I", "Experienced", or "Passionate"
+• Confident third-person tone throughout
 
-Output ONLY the paragraph text — no labels, no JSON, no markdown:"""
+Output ONLY the paragraph — no labels, no JSON, no markdown, no extra text:"""
 
     print("  Generating summary …")
     try:
@@ -368,15 +375,19 @@ INSTRUCTIONS — follow every point exactly:
   Use EXACTLY this pre-written summary — copy it word for word into the "summary" field, do not shorten or rewrite it:
   "{summary if summary else 'Write a 5-6 sentence professional summary targeting this role.'}"
 
-■ EXPERIENCE BULLETS — write 5 detailed bullets per role:
-  • Every bullet must be a full, rich sentence (not a fragment)
-  • Every bullet must reference at least one specific technology or methodology from the JD
-  • Use a DIFFERENT strong action verb to start each bullet — choose from:
-    Architected, Built, Engineered, Delivered, Optimised, Scaled, Integrated, Led, Deployed,
-    Reduced, Increased, Automated, Refactored, Designed, Spearheaded, Implemented, Migrated
-  • At least 3 of the 5 bullets must contain a quantified metric (%, ms, users, requests/day, hours saved, $ value)
-  • Bullets should feel like a senior engineer wrote them — specific, technical, results-driven
-  • Make bullets clearly relevant to the responsibilities and requirements in the JD
+■ EXPERIENCE BULLETS — write exactly 5 bullets per role:
+  • MINIMUM 25 words per bullet — short bullets will be rejected
+  • Each bullet follows this formula: [Action verb] + [specific thing built] + [technology/tool from JD] + [concrete outcome with metric]
+  • Good example (28 words):
+    "Architected a GraphQL API gateway using Node.js and Apollo Server, consolidating 12 REST endpoints and reducing average response latency by 40ms across 2M daily requests."
+  • Bad example (too short — 10 words): "Built GraphQL APIs using Node.js, improving performance."
+  • Every bullet MUST name at least 2 specific technologies from the JD
+  • Use a completely DIFFERENT action verb for each of the 5 bullets:
+    Architected / Built / Engineered / Delivered / Optimised / Scaled / Integrated / Led / Deployed /
+    Automated / Refactored / Spearheaded / Implemented / Migrated / Designed / Reduced / Increased
+  • Exactly 3 of the 5 bullets must include a concrete number (%, users, req/day, ms, $ saved, hours reduced)
+  • Full sentences only — no fragments, no vague phrases like "worked on" or "helped with" or "was responsible for"
+  • Every bullet must directly address a specific responsibility or requirement listed in the JD
 
 ■ SKILLS — be comprehensive and thorough:
   • Start with all existing candidate skills
@@ -424,10 +435,9 @@ Generate the complete resume JSON now:"""
             raw      = call_ollama(prompt, model=model)
             tailored = extract_json(raw)
             tailored = _enforce_skeleton(tailored, resume)
-            # Always use the separately generated summary — never let the main
-            # call overwrite it with a shorter version
             if summary:
                 tailored["summary"] = summary
+            tailored = _expand_short_bullets(tailored, jd, model)
             return tailored
         except (json.JSONDecodeError, ValueError) as exc:
             if attempt < 2:
@@ -435,6 +445,58 @@ Generate the complete resume JSON now:"""
             else:
                 raise RuntimeError(f"Model returned unparseable JSON after 3 attempts: {exc}") from exc
     return resume
+
+
+def _expand_short_bullets(tailored: dict, jd: str, model: str, min_words: int = 22) -> dict:
+    """Expand any bullet under min_words with a focused Ollama call."""
+    jd_snippet = jd[:400]
+    short_count = sum(
+        1 for exp in tailored.get("experience", [])
+        for b in exp.get("bullets", [])
+        if len(b.split()) < min_words
+    )
+    if short_count == 0:
+        return tailored
+
+    print(f"  Expanding {short_count} short bullet(s) …")
+
+    for exp in tailored.get("experience", []):
+        expanded = []
+        for bullet in exp.get("bullets", []):
+            if len(bullet.split()) < min_words:
+                better = _expand_one_bullet(
+                    bullet, exp.get("title", ""), exp.get("company", ""), jd_snippet, model
+                )
+                expanded.append(better)
+            else:
+                expanded.append(bullet)
+        exp["bullets"] = expanded
+    return tailored
+
+
+def _expand_one_bullet(bullet: str, title: str, company: str, jd_snippet: str, model: str) -> str:
+    prompt = f"""You are rewriting a resume bullet point to make it longer and more detailed.
+
+Role: {title} at {company}
+JD keywords: {jd_snippet}
+Current bullet (too short): {bullet}
+
+Rewrite it as ONE sentence of exactly 25–30 words that:
+- Keeps the same fact/achievement
+- Adds the specific technology stack used (pick relevant ones from the JD keywords)
+- Adds OR keeps a concrete metric (%, users, requests, ms, $)
+- Starts with the same or a stronger action verb
+
+Output ONLY the rewritten bullet sentence — no labels, no punctuation changes at the end:"""
+
+    try:
+        raw = call_ollama(prompt, model=model).strip().strip('"').strip("'")
+        # Only accept if it's actually longer
+        if len(raw.split()) >= min(20, len(bullet.split()) + 5):
+            return raw
+    except Exception:
+        pass
+    return bullet  # fall back to original if expansion fails
 
 
 def _build_skeleton(resume: dict) -> dict:
