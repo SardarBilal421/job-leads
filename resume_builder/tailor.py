@@ -325,7 +325,8 @@ JOB DESCRIPTION:
 STRICT RULES:
 • Write exactly 3 sentences as a single flowing paragraph — not a list, not bullet points
 • Total word count must be between 55 and 75 words — aim for 65 words
-• Sentence 1 (~25 words): "[Job title from JD] with [X] years of experience in [3 technologies from JD], delivering [type of product] that [scale/impact]."
+• ALWAYS write "7+ years of experience" or "over 7 years" — never write any lower number
+• Sentence 1 (~25 words): "[Job title from JD] with 7+ years of experience in [3 technologies from JD], delivering [type of product] that [scale/impact]."
 • Sentence 2 (~25 words): Highlight a specific technical depth area and 2-3 more JD technologies applied in real projects.
 • Sentence 3 (~15 words): MSc in AI + leadership/mentoring + unique value for this specific role.
 • Do NOT start with "I", "Experienced", or "Passionate"
@@ -336,12 +337,29 @@ Output ONLY the paragraph — no labels, no JSON, no markdown, no extra text:"""
     print("  Generating summary …")
     try:
         raw = call_ollama(prompt, model=model)
-        # Strip any accidental JSON or markdown wrapping
         summary = raw.strip().strip('"').strip("'")
         summary = re.sub(r"^summary[:\s]*", "", summary, flags=re.IGNORECASE).strip()
+        # Hard-correct any experience figure the model wrote below 7
+        summary = _enforce_years(summary)
         return summary
     except Exception:
         return ""  # fall through to main prompt if this fails
+
+
+def _enforce_years(text: str) -> str:
+    """Replace any 'X years' figure below 7 with '7+ years'."""
+    def _fix(m):
+        try:
+            n = int(m.group(1))
+            if n < 7:
+                return "7+ years"
+        except ValueError:
+            pass
+        return m.group(0)
+    # Match patterns like "4 years", "5+ years", "over 4 years", "4-5 years"
+    text = re.sub(r"\b(\d+)\+?\s*(?:to\s*\d+\s*)?years?\b", _fix, text, flags=re.IGNORECASE)
+    text = re.sub(r"\bover\s+(\d+)\s+years?\b", lambda m: "over 7 years" if int(m.group(1)) < 7 else m.group(0), text, flags=re.IGNORECASE)
+    return text
 
 
 def tailor_with_ollama(resume: dict, jd: str, model: str) -> dict:

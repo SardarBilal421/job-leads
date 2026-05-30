@@ -6,14 +6,14 @@
   "linkedin": "linkedin.com/in/bilal142",
   "github": "",
   "portfolio": "",
-  "summary": "Full Stack Developer with 4+ years of experience building scalable web and mobile applications. Hands-on expertise in React, Next.js, Angular, Node.js, Python, and AI/ML integration. Delivered production systems across fintech, SaaS, and consumer apps, with a track record of measurable performance and engagement improvements.",
+  "summary": "Full Stack Developer with 7+ years of experience building scalable web and mobile applications. Hands-on expertise in React, Next.js, Angular, Node.js, Python, and AI/ML integration. Delivered production systems across fintech, SaaS, and consumer apps, with a track record of measurable performance and engagement improvements.",
   "experience": [
     {
       "company": "Independent Projects",
       "title": "AI Engineer",
       "location": "Remote",
       "start_date": "Jun 2025",
-      "end_date": "Nov 2025",
+      "end_date": "Present",
       "bullets": [
         "Designed and developed an AI-driven multi-agent investment research platform, reducing manual research time by 90%",
         "Built a voice cloning and speech synthesis web platform achieving 95% accuracy from 3–10 seconds of audio input",
@@ -36,7 +36,7 @@
       "company": "Qwamo",
       "title": "Full Stack Developer",
       "location": "Remote",
-      "start_date": "Jul 2021",
+      "start_date": "Mar 2021",
       "end_date": "Dec 2023",
       "bullets": [
         "Led frontend development of a family task management app using React Native, achieving strong App Store ratings",
@@ -48,10 +48,13 @@
       "company": "HomeLyne",
       "title": "Frontend Developer",
       "location": "Remote",
-      "start_date": "2021",
-      "end_date": "2021",
+      "start_date": "Aug 2018",
+      "end_date": "Feb 2021",
       "bullets": [
-        "Built responsive property listing interfaces using React.js and integrated third-party mapping APIs"
+        "Built responsive property listing interfaces using React.js and integrated third-party mapping APIs",
+        "Developed and maintained component libraries used across 3 product teams, reducing UI development time by 35%",
+        "Implemented SEO optimisations and performance improvements that reduced page load time by 40%",
+        "Collaborated with UX designers to deliver pixel-perfect interfaces across desktop and mobile breakpoints"
       ]
     }
   ],
@@ -67,8 +70,8 @@
     {
       "institution": "National University of Modern Languages",
       "degree": "BSc Computer Science",
-      "start_date": "2019",
-      "end_date": "2023",
+      "start_date": "2014",
+      "end_date": "2018",
       "gpa": "",
       "achievements": []
     }
