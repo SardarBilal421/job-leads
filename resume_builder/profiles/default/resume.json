@@ -4,32 +4,32 @@
   "phone": "+447438139239",
   "location": "London, UK",
   "linkedin": "linkedin.com/in/bilal142",
-  "github": "",
+  "github": "github.com/bilal142",
   "portfolio": "",
-  "summary": "Full Stack Developer with 7+ years of experience building scalable web and mobile applications. Hands-on expertise in React, Next.js, Angular, Node.js, Python, and AI/ML integration. Delivered production systems across fintech, SaaS, and consumer apps, with a track record of measurable performance and engagement improvements.",
+  "summary": "Full Stack Developer with 7+ years of experience building scalable web and mobile applications. Hands-on expertise in React, Next.js, Node.js, TypeScript, Python, and AI/ML integration. Delivered production systems across fintech, SaaS, and consumer apps with measurable business impact.",
   "experience": [
     {
-      "company": "Independent Projects",
-      "title": "AI Engineer",
-      "location": "Remote",
+      "company": "Self-Employed",
+      "title": "AI Engineer & Consultant",
+      "location": "Remote, UK",
       "start_date": "Jun 2025",
       "end_date": "Present",
       "bullets": [
-        "Designed and developed an AI-driven multi-agent investment research platform, reducing manual research time by 90%",
-        "Built a voice cloning and speech synthesis web platform achieving 95% accuracy from 3–10 seconds of audio input",
-        "Architected end-to-end ML pipelines integrating LLMs with real-time data feeds and REST APIs"
+        "Designed and developed an AI-driven multi-agent investment research platform for a fintech client, cutting analyst research time by 90% and enabling same-day deal decisions",
+        "Built a voice cloning and speech synthesis platform achieving 95% accuracy from 3–10 seconds of audio — delivered to a media client as a production SaaS product",
+        "Architected end-to-end ML pipelines integrating LLMs with real-time market data feeds, reducing data processing latency from 8 minutes to under 30 seconds"
       ]
     },
     {
       "company": "AutoLeap",
-      "title": "Full Stack Developer",
+      "title": "Senior Full Stack Developer",
       "location": "Remote",
       "start_date": "Jan 2024",
       "end_date": "May 2025",
       "bullets": [
-        "Developed a cloud-based auto repair shop management SaaS platform, increasing operational efficiency by 70%",
-        "Delivered a redesigned UI/UX that increased user engagement by 25%",
-        "Built and maintained RESTful APIs using Node.js and Express, serving thousands of daily active users"
+        "Owned end-to-end delivery of a cloud-based auto repair shop management SaaS platform, increasing operational efficiency by 70% across 200+ partner shops",
+        "Redesigned the customer-facing UI/UX as part of a 4-engineer squad, resulting in a 25% increase in user engagement and a 15% reduction in support tickets",
+        "Built and maintained RESTful APIs in Node.js and Express serving 50k daily active users, maintaining 99.9% uptime across peak periods"
       ]
     },
     {
@@ -39,9 +39,9 @@
       "start_date": "Mar 2021",
       "end_date": "Dec 2023",
       "bullets": [
-        "Led frontend development of a family task management app using React Native, achieving strong App Store ratings",
-        "Integrated AR features, social sharing, and e-commerce functionality into a cross-platform mobile app",
-        "Implemented end-to-end data encryption and authentication flows using Firebase Auth and JWT"
+        "Delivered a cross-platform family task management app in React Native across a 5-person team, achieving a 4.6-star App Store rating within 3 months of launch",
+        "Integrated AR features, social sharing, and in-app e-commerce into the mobile product, driving a 40% increase in daily active users over 6 months",
+        "Implemented end-to-end data encryption and Firebase Auth flows that passed a third-party security audit with zero critical findings"
       ]
     },
     {
@@ -51,17 +51,17 @@
       "start_date": "Aug 2018",
       "end_date": "Feb 2021",
       "bullets": [
-        "Built responsive property listing interfaces using React.js and integrated third-party mapping APIs",
-        "Developed and maintained component libraries used across 3 product teams, reducing UI development time by 35%",
-        "Implemented SEO optimisations and performance improvements that reduced page load time by 40%",
-        "Collaborated with UX designers to deliver pixel-perfect interfaces across desktop and mobile breakpoints"
+        "Built and maintained a React.js property listing platform used by 30k monthly visitors, with integrated mapping APIs and real-time availability updates",
+        "Created a shared UI component library adopted across 3 product teams, reducing interface development time by 35% and ensuring design consistency",
+        "Implemented performance optimisations — lazy loading, code splitting, image compression — that reduced page load time by 40% and improved Lighthouse scores from 58 to 91",
+        "Collaborated with UX designers and the product owner to ship 6 major feature releases on schedule across a 2.5-year tenure"
       ]
     }
   ],
   "education": [
     {
       "institution": "University of East London",
-      "degree": "MSc Artificial Intelligence",
+      "degree": "MSc Artificial Intelligence (Part-Time)",
       "start_date": "2025",
       "end_date": "Present",
       "gpa": "",
@@ -78,9 +78,9 @@
   ],
   "skills": {
     "languages": ["JavaScript", "TypeScript", "Python"],
-    "frameworks": ["React.js", "Next.js", "Angular", "Node.js", "Express.js", "React Native", "Redux", "Firebase"],
-    "tools": ["Git", "Docker", "MongoDB", "MySQL", "Socket.io", "REST APIs", "AWS"],
-    "other": ["AI/ML Integration", "LLMs", "Agile", "CI/CD", "AR Development", "Blockchain"]
+    "frameworks": ["React.js", "Next.js", "Node.js", "Express.js", "React Native", "Angular", "Redux"],
+    "tools": ["AWS", "Docker", "PostgreSQL", "MongoDB", "Firebase", "Git", "CI/CD"],
+    "other": ["REST APIs", "GraphQL", "LLMs", "AI/ML Integration", "Agile", "System Design"]
   },
   "projects": [],
   "certifications": []

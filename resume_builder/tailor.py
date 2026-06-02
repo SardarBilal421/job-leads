@@ -369,82 +369,59 @@ def tailor_with_ollama(resume: dict, jd: str, model: str) -> dict:
     # Generate summary separately for richer, more focused output
     summary = _generate_summary(skeleton, jd, model)
 
-    prompt = f"""You are a world-class professional resume writer with 20 years of experience placing candidates at top tech companies.
+    prompt = f"""You are a senior technical recruiter and professional resume writer. Your job is to write resume content that passes both ATS screening AND human recruiter review.
 
-You have two inputs:
-1. THE CANDIDATE'S WORK HISTORY — real companies, titles, and dates. These are facts you must not change.
-2. THE JOB DESCRIPTION — this is your complete content brief. Everything you write must serve this JD.
-
-════════════════════════════════════════════════
-CANDIDATE WORK HISTORY (facts — do not alter):
-════════════════════════════════════════════════
+CANDIDATE WORK HISTORY (do not change companies, titles, or dates):
 {json.dumps(skeleton, indent=2, ensure_ascii=False)}
 
-════════════════════════════════════════════════
 JOB DESCRIPTION:
-════════════════════════════════════════════════
 {jd}
 
+════════ CRITICAL RULES — a real recruiter will reject this resume if you break any of these ════════
+
+■ SUMMARY (copy exactly, do not change a single word):
+"{summary if summary else 'Experienced Full Stack Engineer with 7+ years delivering scalable web and AI systems.'}"
+
+■ ACTION VERB RULES — this is the most important rule:
+  • Across the ENTIRE resume, use each verb MAXIMUM ONCE
+  • "Led" may appear AT MOST ONCE in the whole document
+  • "Built" may appear AT MOST ONCE
+  • "Developed" may appear AT MOST ONCE
+  • Choose from this diverse verb bank and spread them across all roles:
+    Architected, Engineered, Delivered, Designed, Implemented, Spearheaded, Scaled, Optimised,
+    Refactored, Automated, Integrated, Deployed, Migrated, Owned, Shipped, Established,
+    Collaborated, Reduced, Increased, Streamlined, Introduced, Launched, Consolidated
+
+■ EXPERIENCE BULLETS — 5 per role, 22–32 words each:
+  • Formula: [Unique verb] + [what was built/done] + [specific tech from JD] + [business or user outcome]
+  • GOOD bullet: "Architected a microservices API gateway using Node.js and AWS Lambda, processing 3M daily transactions with 99.9% uptime and cutting infrastructure costs by 30%."
+  • BAD bullet: "Led the development of APIs improving performance." (too vague, overused verb, no context)
+  • METRICS must be believable — use these formats ONLY:
+    ✓ "improved conversion by 18%"   ✓ "serving 50k daily users"   ✓ "saving £12k/month"
+    ✓ "reduced deployment time from 2 hours to 8 minutes"   ✓ "across a 5-engineer team"
+    ✗ NEVER write "reduced latency by 35ms" or "improved performance by 70ms" — ms savings are not credible
+  • At least 1 of the 5 bullets per role must mention a BUSINESS OUTCOME: revenue, cost saving, user retention, conversion rate, or customer satisfaction
+  • At least 1 bullet per role must show SCALE or LEADERSHIP: team size, system traffic, number of services, or stakeholder reach
+
+■ SKILLS — maximum 22 skills total, no keyword stuffing:
+  • Keep only the candidate's strongest and most JD-relevant skills
+  • Add JD skills that the candidate would genuinely have given their background
+  • DO NOT add skills just to pad the list — quality over quantity
+  • Cap: languages ≤5, frameworks ≤7, tools ≤7, other ≤5
+
+■ EDUCATION: copy exactly as provided, no changes
+
 ════════════════════════════════════════════════
-INSTRUCTIONS — follow every point exactly:
-════════════════════════════════════════════════
-
-■ SUMMARY:
-  Use EXACTLY this pre-written summary — copy it word for word into the "summary" field, do not shorten or rewrite it:
-  "{summary if summary else 'Write a 5-6 sentence professional summary targeting this role.'}"
-
-■ EXPERIENCE BULLETS — write exactly 5 bullets per role:
-  • MINIMUM 25 words per bullet — short bullets will be rejected
-  • Each bullet follows this formula: [Action verb] + [specific thing built] + [technology/tool from JD] + [concrete outcome with metric]
-  • Good example (28 words):
-    "Architected a GraphQL API gateway using Node.js and Apollo Server, consolidating 12 REST endpoints and reducing average response latency by 40ms across 2M daily requests."
-  • Bad example (too short — 10 words): "Built GraphQL APIs using Node.js, improving performance."
-  • Every bullet MUST name at least 2 specific technologies from the JD
-  • Use a completely DIFFERENT action verb for each of the 5 bullets:
-    Architected / Built / Engineered / Delivered / Optimised / Scaled / Integrated / Led / Deployed /
-    Automated / Refactored / Spearheaded / Implemented / Migrated / Designed / Reduced / Increased
-  • Exactly 3 of the 5 bullets must include a concrete number (%, users, req/day, ms, $ saved, hours reduced)
-  • Full sentences only — no fragments, no vague phrases like "worked on" or "helped with" or "was responsible for"
-  • Every bullet must directly address a specific responsibility or requirement listed in the JD
-
-■ SKILLS — be comprehensive and thorough:
-  • Start with all existing candidate skills
-  • Extract and ADD every single technology, tool, framework, language, methodology, and concept mentioned anywhere in the JD
-  • Also add closely related industry-standard skills implied by the JD (e.g. if JD says "React" also add "React Hooks", "JSX"; if "Node.js" also add "npm", "Express"; if "AWS" also add relevant AWS services)
-  • Organise by category — most JD-relevant skills appear first in each list
-  • languages: programming languages only
-  • frameworks: frontend/backend frameworks and libraries
-  • tools: devops, databases, testing, cloud, build tools
-  • other: methodologies, soft skills, concepts (Agile, TDD, REST, GraphQL, Microservices, etc.)
-
-■ EDUCATION: Keep exactly as provided — do not change any field
-
-════════════════════════════════════════════════
-OUTPUT FORMAT — return ONLY this JSON, nothing else:
+Return ONLY valid JSON, no markdown, no explanation:
 ════════════════════════════════════════════════
 {{
-  "name": "...", "email": "...", "phone": "...", "location": "...",
-  "linkedin": "...", "github": "...", "portfolio": "...",
-  "summary": "...",
-  "experience": [
-    {{
-      "company": "...", "title": "...", "location": "...",
-      "start_date": "...", "end_date": "...",
-      "bullets": ["bullet 1", "bullet 2", "bullet 3", "bullet 4", "bullet 5"]
-    }}
-  ],
-  "education": [{{"institution":"...","degree":"...","start_date":"...","end_date":"...","gpa":"","achievements":[]}}],
-  "skills": {{
-    "languages": ["lang1", "lang2"],
-    "frameworks": ["fw1", "fw2"],
-    "tools": ["tool1", "tool2"],
-    "other": ["concept1", "concept2"]
-  }},
-  "projects": [],
-  "certifications": []
-}}
-
-Generate the complete resume JSON now:"""
+  "name":"...","email":"...","phone":"...","location":"...","linkedin":"...","github":"...","portfolio":"...",
+  "summary":"...",
+  "experience":[{{"company":"...","title":"...","location":"...","start_date":"...","end_date":"...","bullets":["...","...","...","...","..."]}}],
+  "education":[{{"institution":"...","degree":"...","start_date":"...","end_date":"...","gpa":"","achievements":[]}}],
+  "skills":{{"languages":[],"frameworks":[],"tools":[],"other":[]}},
+  "projects":[],"certifications":[]
+}}"""
 
     print(f"  Generating with {model} …")
 
@@ -489,23 +466,58 @@ def _expand_short_bullets(tailored: dict, jd: str, model: str, min_words: int = 
             else:
                 expanded.append(bullet)
         exp["bullets"] = expanded
+
+    tailored = _deduplicate_verbs(tailored)
+    return tailored
+
+
+def _deduplicate_verbs(tailored: dict) -> dict:
+    """Replace repeated opening verbs across the whole resume with alternatives."""
+    replacements = [
+        "Streamlined", "Established", "Launched", "Consolidated", "Championed",
+        "Introduced", "Shipped", "Overhauled", "Drove", "Coordinated",
+    ]
+    seen_verbs: dict[str, int] = {}
+    replacement_idx = 0
+
+    for exp in tailored.get("experience", []):
+        new_bullets = []
+        for bullet in exp.get("bullets", []):
+            words = bullet.split()
+            if not words:
+                new_bullets.append(bullet)
+                continue
+            verb = words[0].rstrip(",")
+            seen_verbs[verb] = seen_verbs.get(verb, 0) + 1
+            if seen_verbs[verb] > 1 and replacement_idx < len(replacements):
+                new_verb = replacements[replacement_idx]
+                replacement_idx += 1
+                bullet = new_verb + bullet[len(verb):]
+                seen_verbs[new_verb] = seen_verbs.get(new_verb, 0) + 1
+            new_bullets.append(bullet)
+        exp["bullets"] = new_bullets
+
     return tailored
 
 
 def _expand_one_bullet(bullet: str, title: str, company: str, jd_snippet: str, model: str) -> str:
-    prompt = f"""You are rewriting a resume bullet point to make it longer and more detailed.
+    # Detect which verb the bullet currently starts with so we keep it
+    first_word = bullet.split()[0] if bullet.split() else ""
+    prompt = f"""Expand this resume bullet point to 25–30 words. Keep the opening verb exactly as-is.
 
 Role: {title} at {company}
-JD keywords: {jd_snippet}
-Current bullet (too short): {bullet}
+JD context: {jd_snippet}
+Current bullet: {bullet}
 
-Rewrite it as ONE sentence of exactly 25–30 words that:
-- Keeps the same fact/achievement
-- Adds the specific technology stack used (pick relevant ones from the JD keywords)
-- Adds OR keeps a concrete metric (%, users, requests, ms, $)
-- Starts with the same or a stronger action verb
+Rewrite rules:
+- Keep the first word "{first_word}" exactly
+- Add specific technologies from the JD context (pick 1–2 that fit naturally)
+- Add or strengthen the outcome — use %, user counts, cost savings, or team size
+- NEVER use millisecond (ms) metrics — they are not credible
+- Business outcomes preferred: "improving conversion by X%", "serving Xk users", "saving £X/month"
+- Write ONE complete sentence, 25–30 words
 
-Output ONLY the rewritten bullet sentence — no labels, no punctuation changes at the end:"""
+Output ONLY the expanded bullet — nothing else:"""
 
     try:
         raw = call_ollama(prompt, model=model).strip().strip('"').strip("'")
