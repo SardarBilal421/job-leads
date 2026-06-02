@@ -326,7 +326,7 @@ STRICT RULES:
 • Write exactly 3 sentences as a single flowing paragraph — not a list, not bullet points
 • Total word count must be between 55 and 75 words — aim for 65 words
 • ALWAYS write "7+ years of experience" or "over 7 years" — never write any lower number
-• Sentence 1 (~25 words): "[Job title from JD] with 7+ years of experience in [3 technologies from JD], delivering [type of product] that [scale/impact]."
+• Sentence 1 (~25 words): "[Job title from JD] with 7+ years of experience in [3 technologies from JD — use programming languages or key frameworks, NOT 'Angular' as a language], delivering [type of product] that [scale/impact]."
 • Sentence 2 (~25 words): Highlight a specific technical depth area and 2-3 more JD technologies applied in real projects.
 • Sentence 3 (~15 words): MSc in AI + leadership/mentoring + unique value for this specific role.
 • Do NOT start with "I", "Experienced", or "Passionate"
@@ -395,18 +395,20 @@ JOB DESCRIPTION:
 ■ EXPERIENCE BULLETS — 5 per role, 22–32 words each:
   • Formula: [Unique verb] + [what was built/done] + [specific tech from JD] + [business or user outcome]
   • GOOD bullet: "Architected a microservices API gateway using Node.js and AWS Lambda, processing 3M daily transactions with 99.9% uptime and cutting infrastructure costs by 30%."
-  • BAD bullet: "Led the development of APIs improving performance." (too vague, overused verb, no context)
+  • BAD bullet: "Led the development of APIs improving performance." (too vague, no context, no tech)
   • METRICS must be believable — use these formats ONLY:
     ✓ "improved conversion by 18%"   ✓ "serving 50k daily users"   ✓ "saving £12k/month"
     ✓ "reduced deployment time from 2 hours to 8 minutes"   ✓ "across a 5-engineer team"
     ✗ NEVER write "reduced latency by 35ms" or "improved performance by 70ms" — ms savings are not credible
+    ✗ NEVER write two bullets in the same role that contradict each other (e.g. one says frequency increased, another says it decreased)
   • At least 1 of the 5 bullets per role must mention a BUSINESS OUTCOME: revenue, cost saving, user retention, conversion rate, or customer satisfaction
-  • At least 1 bullet per role must show SCALE or LEADERSHIP: team size, system traffic, number of services, or stakeholder reach
+  • At least 1 bullet per role must show LEADERSHIP or PEOPLE MANAGEMENT: team size managed, engineers mentored, direct reports, or stakeholder communication
+  • If the JD mentions specific Gen AI frameworks (LangGraph, Crew AI, OpenAI, LangChain), include at least one bullet referencing them in the most recent role
 
 ■ SKILLS — maximum 22 skills total, no keyword stuffing:
   • Keep only the candidate's strongest and most JD-relevant skills
-  • Add JD skills that the candidate would genuinely have given their background
-  • DO NOT add skills just to pad the list — quality over quantity
+  • Add JD skills including any named Gen AI frameworks (LangGraph, Crew AI, OpenAI SDK, LangChain etc.)
+  • IMPORTANT: "languages" must contain ONLY programming languages (TypeScript, Python, JavaScript, Go etc.) — Angular, React, Vue are FRAMEWORKS not languages, never put them in languages
   • Cap: languages ≤5, frameworks ≤7, tools ≤7, other ≤5
 
 ■ EDUCATION: copy exactly as provided, no changes
@@ -472,11 +474,16 @@ def _expand_short_bullets(tailored: dict, jd: str, model: str, min_words: int = 
 
 
 def _deduplicate_verbs(tailored: dict) -> dict:
-    """Replace repeated opening verbs across the whole resume with alternatives."""
+    """Replace repeated opening verbs — only when the replacement is grammatically safe."""
+    # Only verbs that take a direct object (safe to swap in any bullet context)
     replacements = [
-        "Streamlined", "Established", "Launched", "Consolidated", "Championed",
-        "Introduced", "Shipped", "Overhauled", "Drove", "Coordinated",
+        "Delivered", "Engineered", "Scaled", "Shipped", "Streamlined",
+        "Championed", "Overhauled", "Drove", "Consolidated", "Coordinated",
     ]
+    # Words that follow a verb and signal it cannot be safely swapped
+    # e.g. "Reduced latency" is safe; "Collaborated with" is not
+    unsafe_followers = {"with", "by", "to", "for", "on", "in", "as", "across", "page", "load"}
+
     seen_verbs: dict[str, int] = {}
     replacement_idx = 0
 
@@ -488,12 +495,17 @@ def _deduplicate_verbs(tailored: dict) -> dict:
                 new_bullets.append(bullet)
                 continue
             verb = words[0].rstrip(",")
+            next_word = words[1].lower().rstrip(",") if len(words) > 1 else ""
             seen_verbs[verb] = seen_verbs.get(verb, 0) + 1
-            if seen_verbs[verb] > 1 and replacement_idx < len(replacements):
+
+            if (seen_verbs[verb] > 1
+                    and replacement_idx < len(replacements)
+                    and next_word not in unsafe_followers):
                 new_verb = replacements[replacement_idx]
                 replacement_idx += 1
                 bullet = new_verb + bullet[len(verb):]
                 seen_verbs[new_verb] = seen_verbs.get(new_verb, 0) + 1
+
             new_bullets.append(bullet)
         exp["bullets"] = new_bullets
 
