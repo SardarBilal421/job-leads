@@ -37,12 +37,11 @@ TEMPLATES_DIR = BUILDER_DIR / "templates"
 OUTPUT_DIR    = BUILDER_DIR / "output"
 
 DEFAULT_PROFILE  = "default"
-PRIMARY_MODEL    = "qwen2.5-coder:32b"
-FALLBACK_MODEL   = "qwen2.5-coder:7b"
+PRIMARY_MODEL    = "qwen2.5-coder:7b"   # 32b needs 19 GB VRAM — won't fit on RTX 4050 (6 GB)
+FALLBACK_MODEL   = "dolphin-llama3:latest"
 
 # Ordered fallback chain — tried left to right when a model fails due to resources
 MODEL_CHAIN = [
-    "qwen2.5-coder:32b",
     "qwen2.5-coder:7b",
     "dolphin-llama3:latest",
     "llama3.2:latest",
