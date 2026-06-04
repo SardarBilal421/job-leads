@@ -392,7 +392,7 @@ JOB DESCRIPTION:
     Refactored, Automated, Integrated, Deployed, Migrated, Owned, Shipped, Established,
     Collaborated, Reduced, Increased, Streamlined, Introduced, Launched, Consolidated
 
-■ EXPERIENCE BULLETS — 5 per role, 22–32 words each:
+■ EXPERIENCE BULLETS — exactly 5 per role, 22–32 words each:
   • Formula: [Unique verb] + [what was built/done] + [specific tech from JD] + [business or user outcome]
   • GOOD bullet: "Architected a microservices API gateway using Node.js and AWS Lambda, processing 3M daily transactions with 99.9% uptime and cutting infrastructure costs by 30%."
   • BAD bullet: "Led the development of APIs improving performance." (too vague, no context, no tech)
@@ -401,6 +401,10 @@ JOB DESCRIPTION:
     ✓ "reduced deployment time from 2 hours to 8 minutes"   ✓ "across a 5-engineer team"
     ✗ NEVER write "reduced latency by 35ms" or "improved performance by 70ms" — ms savings are not credible
     ✗ NEVER write two bullets in the same role that contradict each other (e.g. one says frequency increased, another says it decreased)
+  • METRIC VARIETY — across the ENTIRE resume, spread metric TYPES:
+    ✗ Do NOT use "serving X users" in more than 2 bullets total across all roles
+    ✗ Do NOT repeat the same user count (e.g. "10k users") more than once
+    ✓ Mix: %, £/$ savings, time reduction, team size, user counts, request throughput, deployment frequency
   • At least 1 of the 5 bullets per role must mention a BUSINESS OUTCOME: revenue, cost saving, user retention, conversion rate, or customer satisfaction
   • At least 1 bullet per role must show LEADERSHIP or PEOPLE MANAGEMENT: team size managed, engineers mentored, direct reports, or stakeholder communication
   • If the JD mentions specific Gen AI frameworks (LangGraph, Crew AI, OpenAI, LangChain), include at least one bullet referencing them in the most recent role
@@ -434,7 +438,11 @@ Return ONLY valid JSON, no markdown, no explanation:
             tailored = _enforce_skeleton(tailored, resume)
             if summary:
                 tailored["summary"] = summary
+            tailored = _fill_missing_bullets(tailored, jd, model)
             tailored = _expand_short_bullets(tailored, jd, model)
+            tailored = _deduplicate_verbs(tailored)
+            tailored = _vary_serving_phrases(tailored)
+            tailored = _clean_contact_fields(tailored)
             return tailored
         except (json.JSONDecodeError, ValueError) as exc:
             if attempt < 2:
@@ -469,7 +477,6 @@ def _expand_short_bullets(tailored: dict, jd: str, model: str, min_words: int = 
                 expanded.append(bullet)
         exp["bullets"] = expanded
 
-    tailored = _deduplicate_verbs(tailored)
     return tailored
 
 
@@ -482,7 +489,7 @@ def _deduplicate_verbs(tailored: dict) -> dict:
     ]
     # Words that follow a verb and signal it cannot be safely swapped
     # e.g. "Reduced latency" is safe; "Collaborated with" is not
-    unsafe_followers = {"with", "by", "to", "for", "on", "in", "as", "across", "page", "load"}
+    unsafe_followers = {"with", "by", "to", "for", "on", "in", "as", "across", "page", "load", "and", "or", "the", "a", "an"}
 
     seen_verbs: dict[str, int] = {}
     replacement_idx = 0
@@ -539,6 +546,112 @@ Output ONLY the expanded bullet — nothing else:"""
     except Exception:
         pass
     return bullet  # fall back to original if expansion fails
+
+
+def _fill_missing_bullets(tailored: dict, jd: str, model: str, target: int = 5) -> dict:
+    """Generate additional bullets for any role that has fewer than target bullets."""
+    jd_snippet = jd[:400]
+    for exp in tailored.get("experience", []):
+        bullets = exp.get("bullets", [])
+        needed = target - len(bullets)
+        if needed <= 0:
+            continue
+        print(f"  Filling {needed} missing bullet(s) for {exp.get('company', '?')} …")
+        used_verbs = {b.split()[0].rstrip(",").lower() for b in bullets if b.split()}
+        for _ in range(needed):
+            new_b = _generate_missing_bullet(
+                exp.get("title", ""), exp.get("company", ""),
+                jd_snippet, model, used_verbs, bullets,
+            )
+            if new_b:
+                bullets.append(new_b)
+                if new_b.split():
+                    used_verbs.add(new_b.split()[0].rstrip(",").lower())
+        exp["bullets"] = bullets
+    return tailored
+
+
+def _generate_missing_bullet(
+    title: str, company: str, jd_snippet: str, model: str,
+    used_verbs: set, existing: list,
+) -> str:
+    existing_text = "\n".join(f"- {b}" for b in existing)
+    prompt = f"""Write ONE resume bullet point for a {title} at {company}. 25-30 words.
+
+JD context: {jd_snippet}
+
+Existing bullets (use a DIFFERENT verb and DIFFERENT idea):
+{existing_text}
+
+Rules:
+- Start with a unique action verb NOT in this list: {', '.join(sorted(used_verbs))}
+- Include 1-2 technologies from the JD context
+- Include a business outcome: %, cost saving, time saving, team size, or throughput
+- Do NOT write "serving X users" — use a different metric type
+- NEVER use millisecond (ms) metrics
+- Write exactly ONE sentence, 25-30 words
+
+Output ONLY the bullet — no labels, no quotes, no extra text:"""
+
+    try:
+        raw = call_ollama(prompt, model=model).strip().strip('"').strip("'")
+        raw = re.sub(r"^[-•*]\s*", "", raw)
+        if len(raw.split()) >= 15:
+            return raw
+    except Exception:
+        pass
+    return ""
+
+
+# Varied replacements for the over-used "serving X users" pattern
+_SERVING_VARIANTS = [
+    r"supporting {n} active users",
+    r"handling {n} concurrent sessions",
+    r"used by {n} monthly",
+    r"processing requests for {n}",
+    r"onboarding {n} new users",
+]
+
+
+def _vary_serving_phrases(tailored: dict) -> dict:
+    """Replace repeated 'serving X users' phrases with varied metric phrasing."""
+    pattern = re.compile(
+        r"serving (?:over |approximately |around |~)?(\d+(?:\.\d+)?[kKmM]?) "
+        r"(?:daily |monthly |active |unique |concurrent )?users",
+        re.IGNORECASE,
+    )
+    # Collect all occurrences: (exp_index, bullet_index, full_match, count_str)
+    occurrences: list[tuple] = []
+    for ei, exp in enumerate(tailored.get("experience", [])):
+        for bi, bullet in enumerate(exp.get("bullets", [])):
+            m = pattern.search(bullet)
+            if m:
+                occurrences.append((ei, bi, m.group(0), m.group(1)))
+
+    # Keep first occurrence per distinct count, vary the rest
+    seen_counts: dict[str, int] = {}
+    variant_idx = 0
+    exps = tailored.get("experience", [])
+    for ei, bi, original, count in occurrences:
+        key = count.lower()
+        seen_counts[key] = seen_counts.get(key, 0) + 1
+        if seen_counts[key] > 1:
+            template = _SERVING_VARIANTS[variant_idx % len(_SERVING_VARIANTS)]
+            replacement = template.format(n=count)
+            exps[ei]["bullets"][bi] = exps[ei]["bullets"][bi].replace(original, replacement, 1)
+            variant_idx += 1
+
+    return tailored
+
+
+def _clean_contact_fields(tailored: dict) -> dict:
+    """Strip placeholder values from contact fields."""
+    placeholders = {"...", "…", "n/a", "none", "null", "tbd", "your portfolio", "yourwebsite.com"}
+    for field in ("portfolio", "github", "linkedin", "phone", "location"):
+        val = tailored.get(field, "")
+        if val and val.strip().lower() in placeholders:
+            tailored[field] = ""
+    return tailored
 
 
 def _build_skeleton(resume: dict) -> dict:
