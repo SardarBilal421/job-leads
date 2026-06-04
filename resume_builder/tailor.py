@@ -129,8 +129,12 @@ def save_resume(profile: str, data: dict) -> None:
 
 # ── OLLAMA ────────────────────────────────────────────────────────────────────
 
+# Set to True once a CUDA crash has been detected — all subsequent calls use CPU
+_cuda_failed: bool = False
+
+
 def call_ollama(prompt: str, model: str = PRIMARY_MODEL) -> str:
-    global _failed_models
+    global _failed_models, _cuda_failed
 
     # Skip models already known to be unavailable this session
     if model in _failed_models:
@@ -139,11 +143,22 @@ def call_ollama(prompt: str, model: str = PRIMARY_MODEL) -> str:
             return call_ollama(prompt, model=next_model)
         raise RuntimeError("No available Ollama model. Make sure 'ollama serve' is running.")
 
+    options = {"num_gpu": 0} if _cuda_failed else {}
     try:
-        response = ollama.generate(model=model, prompt=prompt)
+        response = ollama.generate(model=model, prompt=prompt, options=options or None)
         return response["response"]
     except Exception as e:
         err = str(e).lower()
+
+        is_cuda_err = any(kw in err for kw in [
+            "cuda", "kernel image", "0xc0000409", "stack-based buffer",
+            "device", "gpu",
+        ])
+        if is_cuda_err and not _cuda_failed:
+            _cuda_failed = True
+            print(f"[WARN] GPU/CUDA error — switching ALL calls to CPU mode (slower but reliable)")
+            return call_ollama(prompt, model=model)
+
         is_fallback_err = any(kw in err for kw in [
             "not found", "pull", "does not exist",
             "memory", "out of memory", "insufficient",
@@ -151,7 +166,7 @@ def call_ollama(prompt: str, model: str = PRIMARY_MODEL) -> str:
         ])
         next_model = _next_in_chain(model)
         if is_fallback_err and next_model:
-            _failed_models.add(model)  # remember — don't retry this model again
+            _failed_models.add(model)
             print(f"[WARN] {model} unavailable — using {next_model} for this session")
             return call_ollama(prompt, model=next_model)
         raise RuntimeError(
