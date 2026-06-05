@@ -142,7 +142,7 @@ def call_ollama(prompt: str, model: str = PRIMARY_MODEL) -> str:
             return call_ollama(prompt, model=next_model)
         raise RuntimeError("No available Ollama model. Make sure 'ollama serve' is running.")
 
-    options = {"num_gpu": 0} if _cuda_failed else {}
+    options = {"num_gpu": 0} if _cuda_failed else {"num_gpu": -1}
     try:
         response = ollama.generate(model=model, prompt=prompt, options=options or None)
         return response["response"]

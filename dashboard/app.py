@@ -190,7 +190,7 @@ def api_tailor_start():
         target=_run_tailor,
         args=(body.get("profile", "default"), body["jd"],
               body.get("template", "modern"), body.get("company", ""),
-              body.get("model", "qwen2.5-coder:32b").replace("auto", "qwen2.5-coder:32b")),
+              body.get("model", "qwen2.5-coder:7b").replace("auto", "qwen2.5-coder:7b")),
         daemon=True,
     ).start()
     return jsonify({"status": "started"})
