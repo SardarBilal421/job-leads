@@ -280,14 +280,14 @@ def print_summary(
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    print(f"[INFO] Fetching jobs from LinkedIn + Indeed (last 2 hours)...")
+    print(f"[INFO] Fetching jobs from LinkedIn + Indeed (last 24 hours)...")
 
     raw = scrape_jobs(
         site_name=["indeed", "linkedin"],
         search_term=SEARCH_QUERY,
         location="United Kingdom",
-        results_wanted=50,
-        hours_old=2,                    # 2h window; seen-filter eliminates overlap
+        results_wanted=100,
+        hours_old=24,                   # 24h window; seen-filter eliminates overlap
         is_remote=True,
         country_indeed="UK",
         linkedin_fetch_description=True,
