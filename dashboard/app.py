@@ -34,7 +34,7 @@ scrape_state: dict = {"status": "idle", "log": [], "last_run": None}
 tailor_state: dict = {"status": "idle", "log": [], "last_output": None}
 
 # ── SETTINGS ──────────────────────────────────────────────────────────────────
-DEFAULTS = {"notify_threshold": 40, "hours_old": 24,
+DEFAULTS = {"notify_threshold": 40, "hours_old": 5,
             "default_template": "modern", "default_profile": "default"}
 
 def load_settings() -> dict:

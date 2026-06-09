@@ -45,7 +45,7 @@ PROFILE = {
         "tech_desc_match":     3,   # points per tech keyword in description
         "tech_desc_cap":      15,   # max points from tech in description
         "is_remote_bonus":    10,   # job flagged as remote
-        "recency_bonus":       5,   # date_posted == today
+        "recency_bonus":      20,   # date_posted == today (proxy for low applicants — fresh jobs rank highest)
         "seniority_penalty": -40,   # flat penalty if any blocklist word in title
     },
 }
@@ -280,14 +280,14 @@ def print_summary(
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    print(f"[INFO] Fetching jobs from LinkedIn + Indeed (last 24 hours)...")
+    print(f"[INFO] Fetching jobs from LinkedIn + Indeed (last 5 hours)...")
 
     raw = scrape_jobs(
         site_name=["indeed", "linkedin"],
         search_term=SEARCH_QUERY,
         location="United Kingdom",
         results_wanted=100,
-        hours_old=24,                   # 24h window; seen-filter eliminates overlap
+        hours_old=5,                    # 5h window — fresh jobs = fewer applicants
         is_remote=True,
         country_indeed="UK",
         linkedin_fetch_description=True,
